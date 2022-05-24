@@ -29,11 +29,12 @@ class plot_time:
       
 
         
-
-    
-
-    
-    
+def read_latest_total(filename):
+    with pd.HDFStore(filename) as store:
+        temp =store.get(object_pass)                    
+    end = temp.tail(1)
+    v = float(end["total"])
+    return v
 
 
 if __name__ == "__main__":
@@ -64,74 +65,38 @@ if __name__ == "__main__":
     price = 0
     total_interest = 0
     holder = plot_time()
-    fail_count = 0
-    syokichi = 8039808130
+    max_fail_count = 2
+    num_shares = 8039808130 # syokiti -> num_shares に名前変更
+    num_files = 18 # hdfファイルの数
     while True:
+        fatal_fail_count = 0 # max_fail_count以上データ取得に失敗したファイルの数
         calc = 0
-        x = 0
-        Boolean = False
-        for i in range(18):
-            cycle = 0
+        for i in range(num_files):
             idx = i *126
             object_pass = "classidx_"+ str(idx)
             filename = "./data/"+str(idx).zfill(3)+"_2.hdf5"
-            try:
-                with pd.HDFStore(filename) as store:
-                    temp =store.get(object_pass)
-            except:
-                pass
-            else:
-                end = temp.tail(1)
-                
-                # 更新中に取得した場合など値の取得を誤ったとき、一からやりなおすのも面倒なので
-                # 取得をやりなおす。tempはDataframe形式で最新の126個分の計算値が入っている。
-                while cycle<=2:
-                    try:
-                        v = float(end["total"])
-                    except:
-                        v = 0
-                        end = temp.tail(1)
-                        cycle += 1
-                    else:
-                        break
-                # どうしても取得できなかった時は、「番号, attention, 現在時刻」を出力して、0からやり直す。  BooleanがTrueの時はやり直しますよ、の意。 
-                if v==0:
+            for j in range(max_fail_count):
+                try:
+                    v = read_latest_total(filename)
+                    print(i, '{:.2f}'.format(v))
+                    break
+                except Exception as e: # except: だとKeyboardInterrupt等もキャッチしてしまう
+                    # 更新中に取得した場合など値の取得を誤ったとき
+                    # 取得をやりなおす
+                    v = 0
+                    if j == max_fail_count - 1:
+                        fatal_fail_count += 1
                     now = datetime.datetime.now()
                     print(i, "attention", now)
-                    Boolean = True    
-                else:
-                    print(i, '{:.2f}'.format(v))
-                    x += 1
-                if Boolean:
-                    break
-                
-                
-
-                
-                calc += v
-        
-        if x != 18:
-            Boolean = True
+            calc += v
         print(calc)
-        
-        
-        if Boolean:
-            print("足し算のミス")
-            pass
-            #continue
-        
-        dict = {"total": [calc]}
-                
-        dict = pd.DataFrame(dict)
-
-        
-        
-
-        
+       
+        if fatal_fail_count > 0:
+            print("一部のファイルで値の取得に失敗しました")
         
         now = datetime.datetime.now()
         total = calc
-        calc /=  syokichi
+        calc /=  num_shares
         
         
         topix = dde.request("現在値").decode("sjis")
